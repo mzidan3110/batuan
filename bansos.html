@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Pendataan Bantuan Sosial</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style scoped>
+        .form-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input,
+        select,
+        button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+
+        .submit-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .submit-button:hover {
+            background-color: #0056b3;
+        }
+
+        .error {
+            color: red;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="form-container">
+        <h1>Form Pendataan Bantuan Sosial</h1>
+        <form @submit.prevent="submitForm">
+            <div class="form-group">
+                <label>Nama:</label>
+                <input type="text" v-model="formData.nama" required />
+            </div>
+
+            <div class="form-group">
+                <label>NIK:</label>
+                <input type="number" v-model="formData.nik" required />
+                <span v-if="nikError" class="error">{{ nikError }}</span>
+            </div>
+
+            <div class="form-group">
+                <label>Nomor Kartu Keluarga:</label>
+                <input type="number" v-model="formData.noKK" required />
+                <span v-if="noKKError" class="error">{{ noKKError }}</span>
+            </div>
+
+            <div class="form-group">
+                <label>Foto KTP:</label>
+                <input type="file" @change="onFileChange('fotoKTP', $event)" required />
+            </div>
+
+            <div class="form-group">
+                <label>Foto Kartu Keluarga:</label>
+                <input type="file" @change="onFileChange('fotoKK', $event)" required />
+            </div>
+
+            <div class="form-group">
+                <label>Umur:</label>
+                <input type="number" v-model="formData.umur" min="0" required />
+            </div>
+
+            <div class="form-group">
+                <label>Jenis Kelamin:</label>
+                <select v-model="formData.jenisKelamin" required>
+                    <option value="Laki-laki">Laki-laki</option>
+                    <option value="Perempuan">Perempuan</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Provinsi:</label>
+                <select v-model="formData.provinsi" @change="fetchKota">
+                    <option value="" disabled selected>Pilih Provinsi</option>
+                    <option v-for="provinsi in provinsiList" :key="provinsi.id" :value="provinsi.id">
+                        {{ provinsi.name }}
+                    </option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Kab/Kota:</label>
+                <select v-model="formData.kota" @change="fetchKecamatan">
+                    <option value="" disabled selected>Pilih Kab/Kota</option>
+                    <option v-for="kota in kotaList" :key="kota.id" :value="kota.id">
+                        {{ kota.name }}
+                    </option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Kecamatan:</label>
+                <select v-model="formData.kecamatan" @change="fetchKelurahan" required>
+                    <option value="" disabled selected>Pilih Kecamatan</option>
+                    <option v-for="kecamatan in kecamatanList" :key="kecamatan.id" :value="kecamatan.id">
+                        {{ kecamatan.name }}
+                    </option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Kelurahan:</label>
+                <select v-model="formData.kelurahan" required>
+                    <option value="" disabled selected>Pilih Kelurahan</option>
+                    <option v-for="kelurahan in kelurahanList" :key="kelurahan.id" :value="kelurahan.id">
+                        {{ kelurahan.name }}
+                    </option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Alamat:</label>
+                <input type="text" v-model="formData.alamat" maxlength="255" required />
+            </div>
+
+            <div class="form-group">
+                <label>RT:</label>
+                <input type="text" v-model="formData.rt" required />
+            </div>
+
+            <div class="form-group">
+                <label>RW:</label>
+                <input type="text" v-model="formData.rw" required />
+            </div>
+
+            <div class="form-group">
+                <label>Penghasilan Sebelum Pandemi:</label>
+                <input type="number" v-model="formData.penghasilanSebelum" required />
+            </div>
+
+            <div class="form-group">
+                <label>Penghasilan Setelah Pandemi:</label>
+                <input type="number" v-model="formData.penghasilanSetelah" required />
+            </div>
+
+            <div class="form-group">
+                <label>Alasan Memerlukan Bantuan:</label>
+                <select v-model="formData.alasan" required>
+                    <option value="Kehilangan pekerjaan">Kehilangan pekerjaan</option>
+                    <option value="Kepala keluarga">Kepala keluarga</option>
+                    <option value="Fakir/miskin">Fakir/miskin</option>
+                    <option value="Lainnya">Lainnya</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <input type="checkbox" v-model="formData.deklarasi" required />
+                <label>Saya menyatakan bahwa data yang diisikan adalah benar.</label>
+            </div>
+
+            <button type="submit" class="submit-button">Submit</button>
+            <button type="button" @click="resetForm" class="submit-button">Reset</button>
+        </form>
+
+        <div v-if="formSubmitted">
+            <h2>Preview Data</h2>
+            <pre>{{ formData }}</pre>
+        </div>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data() {
+                return {
+                    formData: {
+                        nama: "",
+                        nik: "",
+                        noKK: "",
+                        fotoKTP: null,
+                        fotoKK: null,
+                        umur: "",
+                        jenisKelamin: "",
+                        provinsi: "",
+                        kota: "",
+                        kecamatan: "",
+                        kelurahan: "",
+                        alamat: "",
+                        rt: "",
+                        rw: "",
+                        penghasilanSebelum: "",
+                        penghasilanSetelah: "",
+                        alasan: "",
+                        deklarasi: false,
+                    },
+                    provinsiList: [],
+                    kotaList: [],
+                    kecamatanList: [],
+                    kelurahanList: [],
+                    existingNik: [],
+                    existingNoKK: [],
+                    nikError: "",
+                    noKKError: "",
+                    formSubmitted: false,
+                    provinceId: "",
+                    regencyId: "",
+                    districtId: "",
+                    villagesId: "",
+                };
+            },
+            methods: {
+    async fetchProvinsi() {
+        try {
+            const response = await axios.get("https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json");
+            this.provinsiList = response.data;
+        } catch (error) {
+            console.error(error);
+        }
+    },
+    async fetchKota() {
+        if (this.formData.provinsi) {
+            try {
+                const response = await axios.get(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${this.formData.provinsi}.json`);
+                this.kotaList = response.data;
+            } catch (error) {
+                console.error(error);
+            }
+        }
+    },
+    async fetchKecamatan() {
+        if (this.formData.kota) {
+            try {
+                const response = await axios.get(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${this.formData.kota}.json`);
+                this.kecamatanList = response.data;
+            } catch (error) {
+                console.error(error);
+            }
+        }
+    },
+    async fetchKelurahan() {
+        if (this.formData.kecamatan) {
+            try {
+                const response = await axios.get(`https://www.emsifa.com/api-wilayah-indonesia/api/villages/${this.formData.kecamatan}.json`);
+                this.kelurahanList = response.data;
+            } catch (error) {
+                console.error(error);
+            }
+        }
+    },
+                onFileChange(type, event) {
+                    const file = event.target.files[0];
+                    if (type === 'fotoKTP') {
+                        this.formData.fotoKTP = file;
+                    } else {
+                        this.formData.fotoKK = file;
+                    }
+                },
+                validateNikAndNoKK() {
+                    this.nikError = "";
+                    this.noKKError = "";
+
+                    if (this.formData.nik.length !== 16) {
+                        this.nikError = "NIK harus 16 digit.";
+                    }
+                    if (this.formData.noKK.length !== 16) {
+                        this.noKKError = "Nomor KK harus 16 digit.";
+                    }
+                },
+                
+                submitForm() {
+                    this.validateNikAndNoKK();
+
+                    if (!this.nikError && !this.noKKError) {
+                        // Simpan data ke database atau kirim ke API
+                        console.log(this.formData);
+                        this.formSubmitted = true;
+                        alert("Data submitted successfully.");
+                    } else {
+                        this.formSubmitted = false;
+                        alert("Submission failed. Please try again.");
+                    }
+                },
+                resetForm() {
+                    this.formData = {
+                        nama: "",
+                        nik: "",
+                        noKK: "",
+                        fotoKTP: null,
+                        fotoKK: null,
+                        umur: "",
+                        jenisKelamin: "",
+                        provinsi: "",
+                        kota: "",
+                        kecamatan: "",
+                        kelurahan: "",
+                        alamat: "",
+                        rt: "",
+                        rw: "",
+                        penghasilanSebelum: "",
+                        penghasilanSetelah: "",
+                        alasan: "",
+                        deklarasi: false,
+                    };
+                    this.provinsiList = [];
+                    this.kotaList = [];
+                    this.kecamatanList = [];
+                    this.kelurahanList = [];
+                    this.nikError = "";
+                    this.noKKError = "";
+                    this.formSubmitted = false;
+                    this.provinceId = "";
+                    this.regencyId = "";
+                    this.districtId = "";
+                    this.villagesId = "";
+                },
+                onFileChange(fieldName, event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        this.formData[fieldName] = file;
+                    }
+                },
+            },
+            created() {
+                this.fetchProvinsi();
+            }
+        });
+    </script>
+</body>
+</html>
